@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>מחשבון לוגיסטיקה ומחיר סופי</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body {
+    font-family: Arial;
+    padding: 20px;
+    max-width: 500px;
+    margin: auto;
+    direction: rtl;
+    background-color: #f0f8ff;
+    color: #003366;
+}
+h2 {
+    text-align: center;
+    background-color: #e0e0e0;
+    padding: 10px;
+    border-radius: 10px;
+}
+input, select, button {
+    width: 100%;
+    padding: 10px;
+    margin: 8px 0;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #888;
+}
+button {
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #005fa3;
+}
+.result {
+    margin-top: 20px;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    background-color: #d0e7ff;
+    padding: 10px;
+    border-radius: 10px;
+}
+.fixed-costs {
+    background-color: #e0e0e0;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+.fixed-costs div {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 6px 0;
+    cursor: pointer;
+}
+.fixed-costs div span {
+    min-width: 70px;
+    text-align: right;
+}
+</style>
+</head>
+<body>
+
+<h2>מחשבון לוגיסטיקה ומחיר סופי</h2>
+
+<div class="fixed-costs">
+    <div ondblclick="editCost(this)">עלות לוגיסטיקה כוללת <span>14000</span></div>
+    <div ondblclick="editCost(this)">עמילות מכס <span>2000</span></div>
+    <div ondblclick="editCost(this)">תקנים ונמל <span>1500</span></div>
+    <div ondblclick="editCost(this)">בונדד <span>7000</span></div>
+    <div ondblclick="editCost(this)">עמלה <span>10000</span></div>
+    <div ondblclick="editCost(this)">שונות <span>2000</span></div>
+</div>
+
+<label>CBM:</label>
+<input type="number" id="cbm" step="0.0001" oninput="updateLogistics()">
+
+<label>יחידות בקרטון:</label>
+<input type="number" id="units" oninput="updateLogistics()">
+
+<div class="result" id="logisticsSubtotal">עלות לוגיסטיקה בלבד: 0 ₪</div>
+
+<label>תנאי מכר:</label>
+<select id="terms">
+  <option value="FOB">FOB</option>
+  <option value="EXW">EXW</option>
+</select>
+
+<label>עמלת סוכן סיני:</label>
+<select id="agent">
+  <option value="0">0%</option>
+  <option value="2">2%</option>
+  <option value="4">4%</option>
+</select>
+
+<label>מחיר המוצר ליחידה:</label>
+<input type="number" id="productPrice" placeholder="מחיר מוצר ליחידה">
+
+<label>מט"ח למחיר המוצר:</label>
+<select id="productCurrency">
+  <option value="USD">USD</option>
+  <option value="RMB">RMB</option>
+</select>
+
+<button onclick="calc()">חשב</button>
+
+<div class="result" id="finalResult">עלות סופית: 0 ₪</div>
+
+<script>
+function updateLogistics() {
+    let cbm = parseFloat(document.getElementById('cbm').value);
+    let units = parseFloat(document.getElementById('units').value);
+
+    if (!cbm || !units) {
+        document.getElementById('logisticsSubtotal').innerHTML = "עלות לוגיסטיקה בלבד: 0 ₪";
+        return;
+    }
+
+    let totalFixedBase = 0;
+    document.querySelectorAll('.fixed-costs div span').forEach(span => {
+        totalFixedBase += parseFloat(span.textContent);
+    });
+
+    let cartonsPerContainer = 67 / cbm;
+    let totalUnitsInContainer = cartonsPerContainer * units;
+
+    let logisticsOnly = totalFixedBase / totalUnitsInContainer;
+    document.getElementById('logisticsSubtotal').innerHTML = "עלות לוגיסטיקה בלבד: " + logisticsOnly.toFixed(2) + " ₪";
+}
+
+function calc() {
+    let cbm = parseFloat(document.getElementById('cbm').value);
+    let units = parseFloat(document.getElementById('units').value);
+    let terms = document.getElementById('terms').value;
+    let agent = parseFloat(document.getElementById('agent').value);
+    let productPrice = parseFloat(document.getElementById('productPrice').value) || 0;
+    let productCurrency = document.getElementById('productCurrency').value;
+
+    if (!cbm || !units) {
+        alert("נא למלא את CBM ויחידות בקרטון.");
+        return;
+    }
+
+    // עלות לוגיסטיקה בלבד
+    let totalFixedBase = 0;
+    document.querySelectorAll('.fixed-costs div span').forEach(span => {
+        totalFixedBase += parseFloat(span.textContent);
+    });
+    let cartonsPerContainer = 67 / cbm;
+    let totalUnitsInContainer = cartonsPerContainer * units;
+    let logisticsOnly = totalFixedBase / totalUnitsInContainer;
+
+    // חישוב EXW אם נבחר
+    let fobPerUnit = 0;
+    if (terms === "EXW") fobPerUnit = 4000 / totalUnitsInContainer;
+
+    // חישוב עמלת סוכן סיני
+    let additionalCost = fobPerUnit * (1 + agent/100);
+
+    // המרת מחיר המוצר במט"ח
+    if (productCurrency === "USD") productPrice *= 3.3;
+    if (productCurrency === "RMB") productPrice *= 0.49;
+
+    // חיבור הכול לעלות סופית
+    let finalCost = logisticsOnly + additionalCost + productPrice;
+
+    document.getElementById('logisticsSubtotal').innerHTML = "עלות לוגיסטיקה בלבד: " + logisticsOnly.toFixed(2) + " ₪";
+    document.getElementById('finalResult').innerHTML = "עלות סופית: " + finalCost.toFixed(3) + " ₪";
+}
+
+function editCost(div) {
+    let span = div.querySelector('span');
+    let oldValue = span.textContent;
+    let input = document.createElement('input');
+    input.type = 'number';
+    input.value = oldValue;
+    input.style.width = '80px';
+    span.replaceWith(input);
+    input.focus();
+    input.onblur = function() {
+        span.textContent = parseFloat(input.value) || 0;
+        input.replaceWith(span);
+        updateLogistics();
+    }
+}
+</script>
+
+</body>
+</html>
